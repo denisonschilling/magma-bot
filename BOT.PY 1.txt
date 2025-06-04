@@ -1,0 +1,30 @@
+from flask import Flask, request, jsonify
+
+app = Flask(__name__)
+
+@app.route("/", methods=["POST"])
+def webhook():
+    data = request.get_json()
+
+    # Só pra visualizar no terminal o que tá chegando
+    print("Mensagem recebida:", data)
+
+    # Dados principais extraídos do JSON
+    telefone = data.get("phone", "sem número")
+    nome = data.get("nome", "Cliente")
+    
+    # Mensagem de resposta
+    resposta = {
+        "phone": telefone,
+        "message": f"Olá {nome}, recebemos sua mensagem! Em breve um atendente da Magma X vai te responder. 🚀"
+    }
+
+    return jsonify(resposta), 200
+
+
+@app.route("/", methods=["GET"])
+def index():
+    return "Bot da Magma X está online! 🚀", 200
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)
