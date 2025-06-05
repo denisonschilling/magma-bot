@@ -4,36 +4,36 @@ import json
 
 app = Flask(__name__)
 
-# ✅ Credenciais reais da Z-API (testadas)
+# ✅ Credenciais Z-API
 TOKEN = '56100423CA70A6B650E3638D'
-ID_INSTANCIA = '3E23640FFCACED0C14473274D0A2B459'
+ID_INSTANCIA = '3E23640FFCACE0DC14473274D0A2B459'
 
 @app.route("/", methods=["POST"])
 def webhook():
     data = request.get_json()
     print("📦 DADOS COMPLETOS:", json.dumps(data, indent=2, ensure_ascii=False))
 
-    # Segurança: evita erro se algum campo for None
-    payload = data.get("payload", {})
-    sender = payload.get("sender", {})
-
+    # ✅ Tentativas de leitura da mensagem
     msg = (
-        data.get("message") or
-        data.get("mensagem") or
-        data.get("text", {}).get("body") or
-        data.get("text", {}).get("text") or
-        payload.get("text") or
-        payload.get("message") or
+        data.get('message') or
+        data.get('mensagem') or
+        data.get('text', {}).get('body') or
+        data.get('text') or
+        data.get('payload', {}).get('text') or
+        data.get('payload', {}).get('message') or
         ""
     )
 
+    # ✅ Tentativas de leitura do telefone
     telefone = (
-        data.get("phone") or
-        data.get("telefone") or
-        sender.get("phone") or
+        data.get('phone') or
+        data.get('telefone') or
+        data.get('sender', {}).get('phone') or
+        data.get('payload', {}).get('sender', {}).get('phone') or
         ""
     )
 
+    # ✅ Validação
     if msg and telefone:
         resposta = interpretar_mensagem(msg.strip())
         enviar_resposta(telefone, resposta)
@@ -59,11 +59,11 @@ def enviar_resposta(telefone, texto):
         "message": texto
     }
 
-    print("📨 ENVIANDO PARA API:", url)
-    print("📤 PAYLOAD:", payload)
+    print("📤 ENVIANDO PARA API:", url)
+    print("📦 PAYLOAD:", payload)
 
     response = requests.post(url, json=payload)
-    print("📬 RESPOSTA DA API:", response.status_code, response.text)
+    print("📨 RESPOSTA DA API:", response.status_code, response.text)
 
 @app.route("/status", methods=["GET"])
 def status():
