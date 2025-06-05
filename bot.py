@@ -11,8 +11,9 @@ ID_INSTANCIA = 'SUA_INSTANCIA_ID_AQUI'
 def webhook():
     data = request.get_json()
     if data and 'message' in data:
-        msg = data['message'].strip()
-        telefone = data['phone']
+    msg = data.get('mensagem') or data.get('message')
+telefone = data.get('telefone') or data.get('phone')
+
 
         resposta = interpretar_mensagem(msg)
         enviar_resposta(telefone, resposta)
