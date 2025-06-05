@@ -7,7 +7,8 @@ app = Flask(__name__)
 TOKEN = 'SEU_TOKEN_AQUI'
 ID_INSTANCIA = 'SUA_INSTANCIA_ID_AQUI'
 
-@aplicativo.route("/", methods=["POST"])
+@app.route("/", methods=["POST"])
+def webhook():
 def webhook():
     data = request.get_json()
     if data and 'message' in data:
