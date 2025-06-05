@@ -4,6 +4,7 @@ import json
 
 app = Flask(__name__)
 
+# ✅ Credenciais reais da Z-API (testadas)
 TOKEN = '56100423CA70A6B650E3638D'
 ID_INSTANCIA = '3E23640FFCACED0C14473274D0A2B459'
 
@@ -12,21 +13,24 @@ def webhook():
     data = request.get_json()
     print("📦 DADOS COMPLETOS:", json.dumps(data, indent=2, ensure_ascii=False))
 
-       msg = (
-        data.get('message') or
-        data.get('mensagem') or
-        data.get('text', {}).get('body') or
-        data.get('text', {}).get('text') or
-        data.get('payload', {}).get('text') or
-        data.get('payload', {}).get('message') or
+    # Segurança: evita erro se algum campo for None
+    payload = data.get("payload", {})
+    sender = payload.get("sender", {})
+
+    msg = (
+        data.get("message") or
+        data.get("mensagem") or
+        data.get("text", {}).get("body") or
+        data.get("text", {}).get("text") or
+        payload.get("text") or
+        payload.get("message") or
         ""
     )
 
     telefone = (
-        data.get('phone') or
-        data.get('telefone') or
-        data.get('sender', {}).get('phone') or
-        data.get('payload', {}).get('sender', {}).get('phone') or
+        data.get("phone") or
+        data.get("telefone") or
+        sender.get("phone") or
         ""
     )
 
@@ -34,9 +38,9 @@ def webhook():
         resposta = interpretar_mensagem(msg.strip())
         enviar_resposta(telefone, resposta)
     else:
-        print("❌ Mensagem ou telefone não encontrado nos dados recebidos.")
+        print("❌ ERRO: Mensagem ou telefone não foram encontrados!")
 
-    return jsonify({'status': 'OK'})
+    return jsonify({"status": "ok"})
 
 def interpretar_mensagem(msg):
     if msg == "1":
@@ -54,6 +58,7 @@ def enviar_resposta(telefone, texto):
         "phone": telefone,
         "message": texto
     }
+
     print("📨 ENVIANDO PARA API:", url)
     print("📤 PAYLOAD:", payload)
 
