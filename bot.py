@@ -3,28 +3,28 @@ import requests
 
 app = Flask(__name__)
 
+# Preencha com suas credenciais da Z-API
 TOKEN = 'SEU_TOKEN_AQUI'
 ID_INSTANCIA = 'SUA_INSTANCIA_ID_AQUI'
 
-@app.route('/', methods=['POST'])
-def receber_msg():
-    dados = request.get_json()
-    if dados and 'message' in dados:
-        msg = dados['message'].strip()
-        telefone = dados['phone']
-        
-        resposta = interpretar_resposta(msg)
+@app.route("/", methods=["POST"])
+def webhook():
+    data = request.get_json()
+    if data and 'message' in data:
+        msg = data['message'].strip()
+        telefone = data['phone']
+
+        resposta = interpretar_mensagem(msg)
         enviar_resposta(telefone, resposta)
-    
     return jsonify({'status': 'ok'})
 
-def interpretar_resposta(msg):
+def interpretar_mensagem(msg):
     if msg == "1":
         return "🔁 Ok! Vamos renovar seu seguro. Me diga seu CPF."
     elif msg == "2":
-        return "📄 Certo! Vamos cotar um novo seguro. Me diga o tipo: auto, residencial, etc."
+        return "📋 Certo! Vamos cotar um novo seguro. Me diga o tipo: auto, residencial, etc."
     elif msg == "3":
-        return "🚨 Assistência 24h? Já estou encaminhando. Me diga seu endereço ou localização."
+        return "🆘 Assistência 24h? Já estou encaminhando. Me diga seu endereço ou localização."
     else:
         return "Olá! Responda com:\n1️⃣ Renovar\n2️⃣ Cotar\n3️⃣ Assistência"
 
@@ -36,6 +36,10 @@ def enviar_resposta(telefone, texto):
     }
     requests.post(url, json=payload)
 
-if __name__ == "__main__":
-    pass  # Render vai cuidar disso
+@app.route("/", methods=["GET"])
+def index():
+    return "Bot da Magma X está online! 🔥", 200
+
+# Não use app.run() – o Render usará Gunicorn
+
 
