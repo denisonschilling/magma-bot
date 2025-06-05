@@ -12,9 +12,7 @@ def webhook():
     data = request.get_json()
     print("📩 DADOS RECEBIDOS:", data)
 
-    if data and ('mensagem' in data or 'message' in data):
-        msg = data.get('mensagem') or data.get('message')
-        telefone = data.get('telefone') or data.get('phone')
+    msg = data.get('message') or data.get('mensagem') or data.get('text', {}).get('body')
 
         resposta = interpretar_mensagem(msg)
         enviar_resposta(telefone, resposta)
