@@ -38,3 +38,4 @@ def enviar_resposta(telefone, texto):
 
 if __name__ == "__main__":
     pass  # Render vai cuidar disso
+
