@@ -10,11 +10,11 @@ ID_INSTANCIA = 'SUA_INSTANCIA_ID_AQUI'
 @app.route("/", methods=["POST"])
 def webhook():
     data = request.get_json()
-    print("📩 DADOS RECEBIDOS:", data)
+    print("📥 DADOS RECEBIDOS:", data)
 
     if data and ('message' in data or 'mensagem' in data):
-        msg = data.get('mensagem') or data.get('message')
-        telefone = data.get('telefone') or data.get('phone')
+        msg = data.get('message') or data.get('mensagem')
+        telefone = data.get('phone') or data.get('telefone')
 
         resposta = interpretar_mensagem(msg)
         enviar_resposta(telefone, resposta)
@@ -23,13 +23,13 @@ def webhook():
 
 def interpretar_mensagem(msg):
     if msg == "1":
-        return "🔁 Ok! Vamos renovar seu seguro. Me diga seu CPF."
+        return "📘 Ok! Vamos renovar seu seguro. Me diga seu CPF."
     elif msg == "2":
-        return "🆕 Certo! Vamos cotar um novo seguro. Me diga o tipo: auto, residencial, etc."
+        return "📗 Certo! Vamos cotar um novo seguro. Me diga o tipo: auto, residencial, etc."
     elif msg == "3":
         return "🛠️ Assistência 24h? Já estou encaminhando. Me diga seu endereço ou localização."
     else:
-        return "Olá! Responda com:\n🔁 Renovar\n🆕 Cotar\n🛠️ Assistência"
+        return "Olá! Responda com:\n1️⃣ Renovar\n2️⃣ Cotar\n3️⃣ Assistência"
 
 def enviar_resposta(telefone, texto):
     url = f"https://api.z-api.io/instances/{ID_INSTANCIA}/token/{TOKEN}/send-text"
@@ -41,6 +41,4 @@ def enviar_resposta(telefone, texto):
 
 @app.route("/", methods=["GET"])
 def index():
-    return "Bot da Magma X está online! 🔥", 200
-
-
+    return "Bot da Magma X está online! 🔥🤖", 200
