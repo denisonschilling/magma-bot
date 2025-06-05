@@ -37,7 +37,9 @@ def enviar_resposta(telefone, texto):
         "phone": telefone,
         "message": texto
     }
-    requests.post(url, json=payload)
+    response = requests.post(url, json=payload)
+    print("📤 RESPOSTA DA API:", response.status_code, response.text)
+
 
 @app.route("/status", methods=["GET"])
 def status():
