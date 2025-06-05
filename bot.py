@@ -5,33 +5,50 @@ app = Flask(__name__)
 
 # ✅ Credenciais reais da Z-API (já testadas e conectadas)
 TOKEN = '56100423CA70A6B650E3638D'
-ID_INSTANCIA = '3E23640FFCACED0C144737247D0A2B459'
+ID_INSTANCIA = '3E23640FFCACE0DC144737247D0A2B459'
 
 @app.route("/", methods=["POST"])
 def webhook():
     data = request.get_json()
-    print("📩 DADOS RECEBIDOS:", data)
+    print("📥 DADOS RECEBIDOS:", data)
 
-    msg = data.get('message') or data.get('mensagem') or data.get('text', {}).get('body')
-    telefone = data.get('phone') or data.get('telefone')
+    # 🧠 Interpretação da estrutura para capturar corretamente mensagem e telefone
+    msg = (
+        data.get('message') or
+        data.get('mensagem') or
+        data.get('text', {}).get('body') or
+        data.get('payload', {}).get('text') or
+        data.get('payload', {}).get('message') or
+        ""
+    )
+
+    telefone = (
+        data.get('phone') or
+        data.get('telefone') or
+        data.get('sender', {}).get('phone') or
+        data.get('payload', {}).get('sender', {}).get('phone') or
+        ""
+    )
 
     if msg and telefone:
-        resposta = interpretar_mensagem(msg)
+        resposta = interpretar_mensagem(msg.strip())
         enviar_resposta(telefone, resposta)
     else:
         print("❌ Mensagem ou telefone não encontrado nos dados recebidos.")
 
     return jsonify({'status': 'OK'})
 
+
 def interpretar_mensagem(msg):
     if msg == "1":
-        return "🔁 Ok! Vamos renovar seu seguro. Me diga seu CPF."
+        return "🔄 Ok! Vamos renovar seu seguro. Me diga seu CPF."
     elif msg == "2":
         return "✅ Certo! Vamos cotar um novo seguro. Me diga o tipo: auto, residencial, etc."
     elif msg == "3":
         return "🚨 Assistência 24h? Já estou encaminhando. Me diga seu endereço ou localização."
     else:
         return "📋 Opções:\n1️⃣ Renovar\n2️⃣ Cotar\n3️⃣ Assistência"
+
 
 def enviar_resposta(telefone, texto):
     url = f"https://api.z-api.io/instances/{ID_INSTANCIA}/token/{TOKEN}/send-text"
@@ -46,6 +63,7 @@ def enviar_resposta(telefone, texto):
     response = requests.post(url, json=payload)
     print("📬 RESPOSTA DA API:", response.status_code, response.text)
 
+
 @app.route("/status", methods=["GET"])
 def status():
-    return "🟢 Bot da Magma X está online!", 200
+    return "✅ Bot da Magma X está online!", 200
