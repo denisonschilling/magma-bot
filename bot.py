@@ -20,11 +20,11 @@ def webhook():
 
 def interpretar_mensagem(msg):
     if msg == "1":
-        return "🔄 Ok! Vamos renovar seu seguro. Me diga seu CPF."
+        return "🔁 Ok! Vamos renovar seu seguro. Me diga seu CPF."
     elif msg == "2":
-        return "🆕 Certo! Vamos cotar um novo seguro. Me diga o tipo: auto, residencial, etc."
+        return "📋 Certo! Vamos cotar um novo seguro. Me diga o tipo: auto, residencial, etc."
     elif msg == "3":
-        return "🛠️ Assistência 24h? Já estou encaminhando. Me diga seu endereço ou localização."
+        return "🆘 Assistência 24h? Já estou encaminhando. Me diga seu endereço ou localização."
     else:
         return "Olá! Responda com:\n1️⃣ Renovar\n2️⃣ Cotar\n3️⃣ Assistência"
 
