@@ -4,7 +4,7 @@ import json
 
 app = Flask(__name__)
 
-# ✅ Credenciais Z-API
+# ✅ Credenciais da Z-API
 TOKEN = '56100423CA70A6B650E3638D'
 ID_INSTANCIA = '3E23640FFCACE0DC14473274D0A2B459'
 
@@ -13,7 +13,12 @@ def webhook():
     data = request.get_json()
     print("📦 DADOS COMPLETOS:", json.dumps(data, indent=2, ensure_ascii=False))
 
-    # ✅ Tentativas de leitura da mensagem
+    # ⛔ Ignorar mensagens de grupo
+    if data.get('isGroup') or data.get('grupo') is True:
+        print("🚫 Mensagem ignorada: veio de grupo.")
+        return jsonify({"status": "ignorado - grupo"})
+
+    # ✅ Extrair mensagem
     msg = (
         data.get('message') or
         data.get('mensagem') or
@@ -24,7 +29,7 @@ def webhook():
         ""
     )
 
-    # ✅ Tentativas de leitura do telefone
+    # ✅ Extrair telefone
     telefone = (
         data.get('phone') or
         data.get('telefone') or
@@ -33,7 +38,7 @@ def webhook():
         ""
     )
 
-    # ✅ Validação
+    # ✅ Enviar resposta
     if msg and telefone:
         resposta = interpretar_mensagem(msg.strip())
         enviar_resposta(telefone, resposta)
