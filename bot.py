@@ -36,5 +36,5 @@ def enviar_resposta(telefone, texto):
     }
     requests.post(url, json=payload)
 
-if __name__ == '__main__':
-    app.run(port=5000)
+if __name__ == "__main__":
+    pass  # Render vai cuidar disso
