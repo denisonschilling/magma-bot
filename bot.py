@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 import requests
+import json
 
 app = Flask(__name__)
 
@@ -10,30 +11,35 @@ URL_ENVIO = f"https://api.z-api.io/instances/{ID_INSTANCIA}/token/{TOKEN}/send-t
 
 @app.route('/', methods=['POST'])
 def webhook():
-    data = request.get_json()
-    print("Mensagem recebida:", data)
+    try:
+        data = request.get_json()
+        print("🔔 Webhook recebido:", json.dumps(data, indent=2))
 
-    if data and 'messages' in data:
-        for mensagem in data['messages']:
-            texto = mensagem.get('text', {}).get('body', '')
-            numero = mensagem.get('from')
+        if data and 'messages' in data:
+            for msg in data['messages']:
+                texto = msg.get('text', {}).get('body', '')
+                numero = msg.get('from')
 
-            if numero and texto:
-                print(f"[BOT] Texto: {texto} | De: {numero}")
+                if texto and numero:
+                    print(f"📨 Mensagem: {texto} | De: {numero}")
 
-                payload = {
-                    "phone": numero,
-                    "message": f"Olá! Recebi sua mensagem: *{texto}* 😎"
-                }
+                    payload = {
+                        "phone": numero,
+                        "message": f"👋 Oi! Recebi sua mensagem: *{texto}*"
+                    }
 
-                headers = {
-                    "Content-Type": "application/json"
-                }
+                    headers = {
+                        "Content-Type": "application/json"
+                    }
 
-                try:
-                    response = requests.post(URL_ENVIO, json=payload, headers=headers)
-                    print("Resposta Z-API:", response.status_code, response.text)
-                except Exception as e:
-                    print("Erro ao responder:", str(e))
+                    print(f"🚀 Enviando para Z-API: {json.dumps(payload)}")
 
-    return jsonify({"message": "Mensagem processada"}), 200
+                    resposta = requests.post(URL_ENVIO, json=payload, headers=headers)
+                    print(f"✅ STATUS: {resposta.status_code}")
+                    print(f"📦 RESPOSTA: {resposta.text}")
+
+        return jsonify({"message": "OK"}), 200
+
+    except Exception as e:
+        print("❌ ERRO GERAL:", str(e))
+        return jsonify({"error": "Erro no webhook"}), 500
