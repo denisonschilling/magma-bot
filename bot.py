@@ -4,75 +4,66 @@ import json
 
 app = Flask(__name__)
 
-# 🔐 Credenciais da Z-API
+# Z-API config
 TOKEN = '56100423CA70A6B6503E638D'
 ID_INSTANCIA = '3E23640FFCAEC0DC14473274D0A2B459'
+ZAPI_URL = f'https://api.z-api.io/instances/{ID_INSTANCIA}/token/{TOKEN}/send-text'
 
-@app.route("/", methods=["POST"])
-def webhook():
-    data = request.get_json()
-    print("📩 DADOS COMPLETOS:", json.dumps(data, indent=2, ensure_ascii=False))
-
-    # ❌ Ignorar mensagens de grupo
-    if data.get('isGroup') or data.get('grupo') is True:
-        print("🚫 Mensagem ignorada: veio de grupo.")
-        return jsonify({"status": "ignorado - grupo"})
-
-    # 📤 Extrair mensagem
-    msg = (
-        data.get('message') or
-        data.get('mensagem') or
-        data.get('text', {}).get('body') or
-        data.get('text') or
-        data.get('payload', {}).get('text') or
-        data.get('payload', {}).get('message') or
-        ""
-    )
-
-    # 📞 Extrair número e formatar chatId
-    telefone = (
-        data.get('phone') or
-        data.get('telefone') or
-        data.get('sender', {}).get('phone') or
-        data.get('payload', {}).get('sender', {}).get('phone') or
-        ""
-    )
-    chat_id = f"{telefone}@c.us" if telefone else ""
-
-    if msg and chat_id:
-        resposta = interpretar_mensagem(msg.strip())
-        enviar_resposta(chat_id, resposta)
-    else:
-        print("❌ ERRO: Mensagem ou telefone não encontrados!")
-    
-    return jsonify({"status": "ok"})
-
-# 🤖 Função para interpretar mensagem recebida
-def interpretar_mensagem(msg):
-    if msg == "1":
-        return "🟢 Ok! Vamos renovar seu seguro. Me diga seu CPF."
-    elif msg == "2":
-        return "🟢 Certo! Vamos cotar um novo seguro. Me diga o tipo: auto, residencial, etc."
-    elif msg == "3":
-        return "🛠️ Assistência 24h? Já estou encaminhando. Me diga seu endereço ou localização."
-    else:
-        return "📋 Opções:\n1️⃣ Renovar\n2️⃣ Cotar\n3️⃣ Assistência"
-
-# 📤 Envio de resposta para API da Z-API
 def enviar_resposta(chat_id, texto):
-    url = f"https://api.z-api.io/instances/{ID_INSTANCIA}/token/{TOKEN}/send-text"
     payload = {
         "chatId": chat_id,
         "message": texto
     }
+    try:
+        print(f"➡️ Enviando para {chat_id}: {texto}")
+        response = requests.post(ZAPI_URL, json=payload)
+        print("📨 Resposta:", response.status_code, response.text)
+    except Exception as e:
+        print("❌ ERRO ao enviar:", str(e))
 
-    print("🚀 ENVIANDO PARA API:", url)
-    print("📦 PAYLOAD:", payload)
+def interpretar_mensagem(msg):
+    msg = msg.strip().lower()
+    if msg == "1":
+        return "🟢 Ok! Vamos renovar seu seguro. Me diga seu CPF."
+    elif msg == "2":
+        return "📋 Certo! Vamos cotar um novo seguro. Me diga o tipo (auto, residencial, etc)."
+    elif msg == "3":
+        return "🛠️ Assistência 24h? Me diga sua localização ou endereço."
+    else:
+        return "📋 Opções:\n1️⃣ Renovar\n2️⃣ Cotar\n3️⃣ Assistência"
 
-    response = requests.post(url, json=payload)
-    print("📨 RESPOSTA DA API:", response.status_code, response.text)
+@app.route("/", methods=["POST"])
+def webhook():
+    data = request.get_json()
+    print("📩 RECEBIDO:", json.dumps(data, indent=2, ensure_ascii=False))
 
-# 🔎 Endpoint para teste de status
+    # Detecta a mensagem de qualquer forma possível
+    msg = (
+        data.get('mensagem') or
+        data.get('message') or
+        data.get('text', {}).get('body') or
+        data.get('text') or
+        ""
+    )
+
+    # Detecta o telefone ou chatId
+    telefone = (
+        data.get('phone') or
+        data.get('sender', {}).get('phone') or
+        data.get('chatId') or
+        ""
+    )
+
+    chat_id = telefone if "@c.us" in telefone else f"{telefone}@c.us" if telefone else ""
+
+    if not msg or not chat_id:
+        print("❌ ERRO: mensagem ou telefone ausentes.")
+        return jsonify({"erro": "dados insuficientes"}), 400
+
+    resposta = interpretar_mensagem(msg)
+    enviar_resposta(chat_id, resposta)
+
+    return jsonify({"status": "mensagem enviada"}), 200
+
 @app.route("/status", methods=["GET"])
-def status():
-    return "✅ Bot da Magma X está online!", 200
+def
