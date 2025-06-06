@@ -3,10 +3,12 @@ import requests
 
 app = Flask(__name__)
 
+# Configuração Z-API
 ID_INSTANCIA = '3E23640FFCAEC0DC14473274D0A2B459'
 TOKEN = '56100423CA70A6B6503E638D'
 URL_BASE = f'https://api.z-api.io/instances/{ID_INSTANCIA}/token/{TOKEN}'
 
+# Enviar texto simples
 def enviar_texto(chat_id, texto):
     payload = {"chatId": chat_id, "message": texto}
     try:
@@ -15,6 +17,7 @@ def enviar_texto(chat_id, texto):
     except Exception as e:
         print("❌ Erro ao enviar texto:", e)
 
+# Enviar botões interativos
 def enviar_botoes(chat_id):
     payload = {
         "chatId": chat_id,
@@ -33,76 +36,50 @@ def enviar_botoes(chat_id):
     except Exception as e:
         print("❌ Erro ao enviar botões:", e)
 
+# Interpretar mensagem
 def interpretar(msg):
     msg = str(msg).strip().lower()
-    if msg == "1":
-        return "🟢 Vamos renovar seu seguro! Me passe seu CPF ou placa."
-    elif msg == "2":
-        return "📋 Vamos cotar um novo seguro! Qual tipo? (auto, residencial, empresarial...)"
-    elif msg == "3":
-        return "🛠️ Assistência 24h acionada! Informe o endereço ou localização."
-    else:
-        return None
+    respostas = {
+        "1": "🟢 Vamos renovar seu seguro! Me passe seu CPF ou placa.",
+        "2": "📋 Vamos cotar um novo seguro! Qual tipo? (auto, residencial, empresarial...)",
+        "3": "🛠️ Assistência 24h acionada! Informe o endereço ou localização."
+    }
+    return respostas.get(msg, None)
 
-def extrair_mensagem(data):
-    if isinstance(data.get("text"), dict):
-        if "mensagem" in data["text"]:
-            return data["text"]["mensagem"]
-        if "body" in data["text"]:
-            return data["text"]["body"]
-        # Se tiver só um valor no dict
-        if len(data["text"].values()) == 1:
-            return list(data["text"].values())[0]
-    if isinstance(data.get("text"), str):
-        return data["text"]
-    if isinstance(data.get("mensagem"), str):
-        return data["mensagem"]
-    if isinstance(data.get("message"), str):
-        return data["message"]
-    return ""
-
-def extrair_telefone(data):
-    telefone = (
-        data.get("phone") or
-        data.get("telefone") or
-        (data.get("sender") or {}).get("phone") or
-        data.get("chatId") or ""
-    )
-    telefone = str(telefone).replace("-grupo", "").replace("@c.us", "").strip()
-    # Agora só remove espaço, mas não bloqueia mais nada
-    return telefone
+# Extrair mensagem e telefone
+def extrair_dados(data):
+    msg = data.get("text", {}).get("mensagem") or data.get("text", {}).get("body") or data.get("text") or data.get("mensagem") or data.get("message")
+    telefone = data.get("phone") or data.get("telefone") or data.get("sender", {}).get("phone") or data.get("chatId")
+    if telefone:
+        telefone = str(telefone).replace("-grupo", "").replace("@c.us", "").strip()
+    return msg, telefone
 
 @app.route("/", methods=["POST"])
 def webhook():
     data = request.get_json()
     print("\n📥 JSON recebido:", data)
 
-    # ---- IGNORA GRUPO ----
-    if data.get("isGroup") or (isinstance(data.get("telefone"), str) and "-grupo" in data.get("telefone")):
+    if data.get("isGroup") or "-grupo" in str(data.get("telefone", "")):
         print("🚫 Grupo detectado, ignorado.")
         return jsonify({"status": "ignorado grupo"}), 200
 
-    msg = extrair_mensagem(data)
-    telefone = extrair_telefone(data)
+    msg, telefone = extrair_dados(data)
     chat_id = telefone + "@c.us" if telefone else ""
     print(f"💬 Mensagem recebida: '{msg}'")
     print(f"📱 chat_id: {chat_id}")
 
-    # Se telefone é muito curto, apenas loga e retorna ok (não tenta enviar pra Z-API)
     if len(telefone) < 12:
-        print("⚠️ Telefone curto ou inválido! Não vou enviar nada porque WhatsApp não entrega para números curtos. Informe seu DDD completo no disparo.")
+        print("⚠️ Telefone curto ou inválido. Não enviado.")
         return jsonify({"status": "telefone curto/ok"}), 200
 
     resposta = interpretar(msg)
     if resposta:
         enviar_texto(chat_id, resposta)
-        print("✅ Enviado TEXTO para", chat_id)
     else:
         enviar_botoes(chat_id)
-        print("✅ Enviado BOTÕES para", chat_id)
 
     return jsonify({"status": "ok"}), 200
 
 @app.route("/status", methods=["GET"])
 def status():
-    return "MAGMA BOT RODANDO, VIVO, SEM ERRO", 200
+    return "MAGMA BOT RODANDO", 200
