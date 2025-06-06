@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
-# Substitua isso pelo token real da conta (client-token)
+# Token de segurança da conta
 EXPECTED_TOKEN = "F9eddb1f0692041b9abc8e8ec7f622657S"
 
 @app.route("/", methods=["POST"])
@@ -12,14 +12,19 @@ def webhook():
         return jsonify({"error": "Unauthorized"}), 403
 
     data = request.get_json()
+
+    # Extrair mensagem e número de telefone
     message = data.get("message", {}).get("text", "")
     phone = data.get("message", {}).get("phone", "")
 
+    print(f"Mensagem recebida de {phone}: {message}")
+
+    # Se a mensagem for "oi", responde automaticamente
     if "oi" in message.lower():
-        resposta = {
+        return jsonify({
             "phone": phone,
             "message": "Olá! Aqui é o Magma Bot. Como posso te ajudar hoje?"
-        }
-        return jsonify(resposta)
+        })
 
-    return jsonify({"message": "Recebido com sucesso"})
+    # Sempre retornar 'RECEIVED' para evitar reenvio da Z-API
+    return jsonify({"status": "RECEIVED"})
