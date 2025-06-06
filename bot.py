@@ -1,45 +1,33 @@
 from flask import Flask, request, jsonify
 import requests
-import json
 
 app = Flask(__name__)
 
-# === CONFIGURAÇÕES Z-API ===
-ID_INSTANCIA = "3E23640FFCAC0EDC14473274D0A2B459"
-TOKEN = "56100423CA70A6B650E3638D"
-URL_ENVIO = f"https://api.z-api.io/instances/{ID_INSTANCIA}/token/{TOKEN}/send-text"
+# === Configurações da Instância Z-API ===
+ZAPI_URL = "https://api.z-api.io/instances/3E23640FFCAC0EDC14473274D0A2B459/token/56100423CA70A6B650E3638D/send-text"
 
-@app.route('/', methods=['POST'])
+@app.route("/", methods=["POST"])
 def webhook():
-    try:
-        data = request.get_json()
-        print("🔔 Webhook recebido:", json.dumps(data, indent=2))
+    data = request.get_json()
+    print("📩 Mensagem recebida:", data)
 
-        if data and 'messages' in data:
-            for msg in data['messages']:
-                texto = msg.get('text', {}).get('body', '')
-                numero = msg.get('from')
+    if data and "messages" in data:
+        for msg in data["messages"]:
+            numero = msg.get("from")
+            texto = msg.get("text", {}).get("body", "")
 
-                if texto and numero:
-                    print(f"📨 Mensagem: {texto} | De: {numero}")
+            if numero and texto:
+                print(f"👉 De: {numero} | Texto: {texto}")
 
-                    payload = {
-                        "phone": numero,
-                        "message": f"👋 Oi! Recebi sua mensagem: *{texto}*"
-                    }
+                payload = {
+                    "phone": numero,
+                    "message": f"Olá, recebi sua mensagem: *{texto}* ✅"
+                }
 
-                    headers = {
-                        "Content-Type": "application/json"
-                    }
+                try:
+                    resposta = requests.post(ZAPI_URL, json=payload)
+                    print("✅ Enviado:", resposta.status_code, resposta.text)
+                except Exception as e:
+                    print("❌ Erro ao enviar:", e)
 
-                    print(f"🚀 Enviando para Z-API: {json.dumps(payload)}")
-
-                    resposta = requests.post(URL_ENVIO, json=payload, headers=headers)
-                    print(f"✅ STATUS: {resposta.status_code}")
-                    print(f"📦 RESPOSTA: {resposta.text}")
-
-        return jsonify({"message": "OK"}), 200
-
-    except Exception as e:
-        print("❌ ERRO GERAL:", str(e))
-        return jsonify({"error": "Erro no webhook"}), 500
+    return jsonify({"message": "OK"}), 200
