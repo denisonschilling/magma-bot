@@ -5,7 +5,7 @@ app = Flask(__name__)
 
 # Configuração Z-API
 ID_INSTANCIA = '3E23640FFCAEC0DC14473274D0A2B459'
-TOKEN = '56100423CA70A6B6503E638D'
+TOKEN = '10A63A99D5E7469C3BAAB7CC'
 URL_BASE = f'https://api.z-api.io/instances/{ID_INSTANCIA}/token/{TOKEN}'
 
 # Enviar texto simples
