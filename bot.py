@@ -11,6 +11,7 @@ ZAPI_BUTTON_URL = f'https://api.z-api.io/instances/{ID_INSTANCIA}/token/{TOKEN}/
 
 def enviar_texto(chat_id, texto):
     payload = {"chatId": chat_id, "message": texto}
+    print(f"➡️ Enviando texto para {chat_id}: {texto}")
     requests.post(ZAPI_TEXT_URL, json=payload)
 
 def enviar_botoes(chat_id):
@@ -25,6 +26,7 @@ def enviar_botoes(chat_id):
             {"id": "assistencia", "text": "3️⃣ Assistência 24h"}
         ]
     }
+    print(f"➡️ Enviando botões para {chat_id}")
     requests.post(ZAPI_BUTTON_URL, json=payload)
 
 def interpretar(msg):
@@ -43,50 +45,9 @@ def webhook():
     print("📥 DADOS RECEBIDOS:", json.dumps(data, indent=2, ensure_ascii=False))
 
     # Ignora grupo
-    if data.get("isGroup") is True or data.get("isGroup") == True:
+    if data.get("isGroup") is True or (isinstance(data.get("telefone"), str) and "-grupo" in data.get("telefone")):
         print("🚫 Grupo detectado. Ignorado.")
         return jsonify({"status": "ignorado grupo"}), 200
 
-    # Extrai mensagem de várias formas
+    # Extrai mensagem (do jeito do seu JSON)
     msg = ""
-    # 1. Se vier dentro de data['text']['mensagem']
-    if isinstance(data.get("text"), dict) and "mensagem" in data["text"]:
-        msg = data["text"]["mensagem"]
-    # 2. Se vier dentro de data['mensagem']
-    elif isinstance(data.get("mensagem"), str):
-        msg = data["mensagem"]
-    # 3. Se vier dentro de data['message']
-    elif isinstance(data.get("message"), str):
-        msg = data["message"]
-    # 4. Se vier dentro de data['text']['body']
-    elif isinstance(data.get("text"), dict) and "body" in data["text"]:
-        msg = data["text"]["body"]
-    # 5. Se vier dentro de data['text']
-    elif isinstance(data.get("text"), str):
-        msg = data["text"]
-
-    msg = msg.strip().lower() if isinstance(msg, str) else ""
-
-    # Extrai telefone/chatId
-    telefone = (
-        data.get('phone') or
-        data.get('sender', {}).get('phone') or
-        data.get('chatId') or ""
-    )
-    chat_id = telefone if "@c.us" in telefone else f"{telefone}@c.us" if telefone else ""
-
-    if not msg or not chat_id:
-        print("❌ ERRO: dados incompletos")
-        return jsonify({"erro": "dados incompletos"}), 400
-
-    resposta = interpretar(msg)
-    if resposta:
-        enviar_texto(chat_id, resposta)
-    else:
-        enviar_botoes(chat_id)
-
-    return jsonify({"status": "ok"}), 200
-
-@app.route("/status", methods=["GET"])
-def status():
-    return "✅ MAGMA BOT VIVO, LIGADO E RESPONDENDO", 200
