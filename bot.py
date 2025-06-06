@@ -4,24 +4,22 @@ import json
 
 app = Flask(__name__)
 
-# Z-API Config (mantenha suas credenciais originais)
-TOKEN = 'SEU_TOKEN_ZAPI' # Substitua pelo seu token real
-ID_INSTANCIA = 'SEU_ID_INSTANCIA' # Substitua pelo seu ID real
+# Configuração da Z-API
+TOKEN = '56100423CA70A6B6503E638D'
+ID_INSTANCIA = '3E23640FFCAEC0DC14473274D0A2B459'
 ZAPI_TEXT_URL = f'https://api.z-api.io/instances/{ID_INSTANCIA}/token/{TOKEN}/send-text'
 ZAPI_BUTTON_URL = f'https://api.z-api.io/instances/{ID_INSTANCIA}/token/{TOKEN}/send-button-message'
 
-# Envia texto
-def enviar_texto(chat_id, texto ):
-    payload = {"chatId": chat_id, "message": texto}
-    headers = {'Content-Type': 'application/json'}
-    try:
-        response = requests.post(ZAPI_TEXT_URL, json=payload, headers=headers)
-        response.raise_for_status() # Verifica erros HTTP
-        print(f"✅ Texto enviado para {chat_id}: {response.status_code}")
-    except requests.exceptions.RequestException as e:
-        print(f"❌ Erro ao enviar texto para {chat_id}: {e}")
+# Envia mensagem de texto
+def enviar_texto(chat_id, texto):
+    payload = {
+        "chatId": chat_id,
+        "message": texto
+    }
+    response = requests.post(ZAPI_TEXT_URL, json=payload)
+    print("📨 Texto enviado:", response.status_code, response.text)
 
-# Envia botões
+# Envia mensagem com botões
 def enviar_botoes(chat_id):
     payload = {
         "chatId": chat_id,
@@ -34,35 +32,56 @@ def enviar_botoes(chat_id):
             {"id": "assistencia", "text": "3️⃣ Assistência 24h"}
         ]
     }
-    headers = {'Content-Type': 'application/json'}
-    try:
-        response = requests.post(ZAPI_BUTTON_URL, json=payload, headers=headers)
-        response.raise_for_status() # Verifica erros HTTP
-        print(f"✅ Botões enviados para {chat_id}: {response.status_code}")
-    except requests.exceptions.RequestException as e:
-        print(f"❌ Erro ao enviar botões para {chat_id}: {e}")
+    response = requests.post(ZAPI_BUTTON_URL, json=payload)
+    print("📨 Botões enviados:", response.status_code, response.text)
 
-# Interpreta mensagem
+# Responde com base na mensagem
 def interpretar(msg):
-    msg = msg.lower().strip()
-    if msg == "1" or "renovar" in msg:
+    if msg == "1" or msg == "renovar":
         return "🟢 Vamos renovar seu seguro! Me diga o CPF ou a placa do veículo."
-    elif msg == "2" or "cotar" in msg:
+    elif msg == "2" or msg == "cotar":
         return "📋 Vamos cotar um novo seguro! Qual o tipo? (auto, residencial, empresarial...)"
-    elif msg == "3" or "assistencia" in msg or "assistência" in msg:
+    elif msg == "3" or msg == "assistencia":
         return "🛠️ Assistência 24h acionada! Me diga seu endereço ou localização."
-    return None
+    else:
+        return None
 
 @app.route("/", methods=["POST"])
 def webhook():
     data = request.get_json()
-    print("📥 DADOS RECEBIDOS:", json.dumps(data, indent=2, ensure_ascii=False))
+    print("📩 DADOS RECEBIDOS:", json.dumps(data, indent=2, ensure_ascii=False))
 
-    # Ignora grupos e status de mensagem
-    if data.get("isGroup") is True or data.get("isStatusReply") is True:
-        print("🚫 Grupo ou Status Reply detectado. Ignorado.")
-        return jsonify({"status": "ignorado grupo/status"}), 200
+    # Ignora mensagens de grupo
+    if data.get("isGroup") is True:
+        print("🚫 Mensagem de grupo ignorada")
+        return jsonify({"status": "ignorado"}), 200
 
-    # --- Extrai Mensagem --- 
-    msg = ""
-    # Verifica se é callback de botão (estrutura 
+    # Extrair a mensagem de forma real
+    msg_raw = data.get("text", {}).get("mensagem") or ""
+    msg = msg_raw.strip().lower() if isinstance(msg_raw, str) else ""
+
+    # Extrair o chatId
+    telefone = (
+        data.get("phone") or
+        data.get("sender", {}).get("phone") or
+        data.get("chatId")
+    )
+
+    chat_id = telefone if telefone and "@c.us" in telefone else f"{telefone}@c.us" if telefone else ""
+
+    if not msg or not chat_id:
+        print("❌ Dados incompletos")
+        return jsonify({"erro": "dados incompletos"}), 400
+
+    resposta = interpretar(msg)
+
+    if resposta:
+        enviar_texto(chat_id, resposta)
+    else:
+        enviar_botoes(chat_id)
+
+    return jsonify({"status": "mensagem processada"}), 200
+
+@app.route("/status", methods=["GET"])
+def status():
+    return "✅ MAGMA BOT FUNCIONANDO COM JSON REAL!", 200
