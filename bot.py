@@ -3,9 +3,8 @@ import requests
 
 app = Flask(__name__)
 
-# === CONFIGURAÇÕES ===
 ZAPI_URL = "https://api.z-api.io/instances/3E23640FFCAC0EDC14473274D0A2B459/token/56100423CA70A6B650E3638D/send-text"
-CLIENT_TOKEN = "F9edb1f0692041b9abc68ec7f6226575"  # substitui aqui se renovar depois
+CLIENT_TOKEN = "F9edb1f0692041b9abc68ec7f6226575"  # atualiza se mudar
 
 @app.route("/", methods=["POST"])
 def webhook():
@@ -18,18 +17,16 @@ def webhook():
     for msg in data["messages"]:
         numero = msg.get("from")
 
-        texto = ""
-        if msg.get("text", {}).get("body"):
-            texto = msg["text"]["body"]
-        elif msg.get("text", {}).get("mensagem"):
-            texto = msg["text"]["mensagem"]
+        # Captura robusta do texto
+        texto_raw = msg.get("text", {})
+        texto = texto_raw.get("body") or texto_raw.get("mensagem") or ""
 
         if numero and texto:
             print(f"✉️ Número: {numero} | Texto: {texto}")
 
             payload = {
                 "phone": numero,
-                "message": f"Olá! Recebi sua mensagem: *{texto}* ✅"
+                "message": f"👋 Olá! Você enviou: *{texto}*"
             }
 
             headers = {
@@ -43,4 +40,4 @@ def webhook():
             except Exception as e:
                 print("❌ Erro ao enviar resposta:", e)
 
-    return jsonify({"status": "Processado"}), 200
+    return jsonify({"status": "OK"}), 200
