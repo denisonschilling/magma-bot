@@ -1,4 +1,4 @@
-   from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify
 import requests
 
 app = Flask(__name__)
@@ -24,7 +24,7 @@ def webhook():
             url = f"https://api.z-api.io/instances/{ID_INSTANCIA}/token/{TOKEN}/send-text"
             payload = {
                 "phone": numero,
-                "message": f"Olá, recebi sua mensagem: *{texto_recebido}* ✅"
+                "message": f"Olá! Sua mensagem foi recebida com sucesso: *{texto_recebido}* 🤖"
             }
 
             try:
