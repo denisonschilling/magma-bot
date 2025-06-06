@@ -17,24 +17,15 @@ def enviar_texto(chat_id, texto):
     except Exception as e:
         print("❌ Erro ao enviar texto:", e)
 
-# Enviar botões interativos
-def enviar_botoes(chat_id):
-    payload = {
-        "chatId": chat_id,
-        "content": "Escolha uma opção abaixo:",
-        "title": "Atendimento Magma X",
-        "footer": "Estamos prontos pra te atender!",
-        "buttons": [
-            {"id": "1", "text": "1️⃣ Renovar"},
-            {"id": "2", "text": "2️⃣ Cotar novo"},
-            {"id": "3", "text": "3️⃣ Assistência 24h"}
-        ]
-    }
-    try:
-        r = requests.post(f"{URL_BASE}/send-button-message", json=payload)
-        print("🔵 ENVIO BOTÕES:", r.status_code, r.text)
-    except Exception as e:
-        print("❌ Erro ao enviar botões:", e)
+# Enviar mensagem com opções (texto simples)
+def enviar_opcoes(chat_id):
+    mensagem_opcoes = (
+        "Digite o número para escolher:\n"
+        "1️⃣ Renovar\n"
+        "2️⃣ Cotar novo\n"
+        "3️⃣ Assistência 24h"
+    )
+    enviar_texto(chat_id, mensagem_opcoes)
 
 # Interpretar mensagem
 def interpretar(msg):
@@ -76,7 +67,7 @@ def webhook():
     if resposta:
         enviar_texto(chat_id, resposta)
     else:
-        enviar_botoes(chat_id)
+        enviar_opcoes(chat_id)
 
     return jsonify({"status": "ok"}), 200
 
