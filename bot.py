@@ -51,3 +51,31 @@ def webhook():
 
     # Extrai mensagem (do jeito do seu JSON)
     msg = ""
+    if isinstance(data.get("text"), dict) and "mensagem" in data["text"]:
+        msg = data["text"]["mensagem"]
+    else:
+        print("❌ Mensagem não encontrada no JSON recebido.")
+        return jsonify({"erro": "mensagem não encontrada"}), 400
+
+    # Extrai telefone de quem enviou a mensagem (responde para o LEAD)
+    telefone = data.get("telefone") or ""
+    chat_id = f"{telefone}@c.us" if telefone else ""
+
+    if not msg or not chat_id:
+        print("❌ ERRO: dados incompletos")
+        return jsonify({"erro": "dados incompletos"}), 400
+
+    print(f"🕵️ MSG EXTRAIDA: {msg}")
+    print(f"🕵️ CHAT_ID EXTRAIDO: {chat_id}")
+
+    resposta = interpretar(msg)
+    if resposta:
+        enviar_texto(chat_id, resposta)
+        return jsonify({"status": "texto enviado"}), 200
+    else:
+        enviar_botoes(chat_id)
+        return jsonify({"status": "botoes enviados"}), 200
+
+@app.route("/status", methods=["GET"])
+def status():
+    return "✅ MAGMA BOT VIVO, LIGADO E RESPONDENDO", 200
