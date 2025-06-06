@@ -1,114 +1,139 @@
 from flask import Flask, request, jsonify
+import re
 import requests
-import json
+
+# Configuration for Z-API (placeholders for instance ID and token)
+ZAPI_INSTANCE_ID = "YOUR_INSTANCE_ID"
+ZAPI_TOKEN = "YOUR_INSTANCE_TOKEN"
+ZAPI_BASE_URL = f"https://api.z-api.io/instances/{ZAPI_INSTANCE_ID}/token/{ZAPI_TOKEN}"
 
 app = Flask(__name__)
 
-TOKEN = '56100423CA70A6B6503E638D'
-ID_INSTANCIA = '3E23640FFCAEC0DC14473274D0A2B459'
-ZAPI_TEXT_URL = f'https://api.z-api.io/instances/{ID_INSTANCIA}/token/{TOKEN}/send-text'
-ZAPI_BUTTON_URL = f'https://api.z-api.io/instances/{ID_INSTANCIA}/token/{TOKEN}/send-button-message'
-
-def enviar_texto(chat_id, texto):
-    payload = {"chatId": chat_id, "message": texto}
-    print(f"➡️ Enviando texto para {chat_id}: {texto}")
+@app.route('/webhook', methods=['POST'])
+def whatsapp_webhook():
+    """Webhook endpoint to receive and respond to WhatsApp messages via Z-API."""
     try:
-        r = requests.post(ZAPI_TEXT_URL, json=payload)
-        print("🔵 RESPOSTA ENVIO:", r.status_code, r.text)
+        # Parse the incoming JSON data
+        data = request.get_json(force=True, silent=True)
     except Exception as e:
-        print("❌ Falha no envio de texto:", e)
+        print(f"Error parsing incoming JSON: {e}")
+        # Return a 200 response with error info (to avoid webhook retrying on error)
+        return jsonify({"success": False, "error": "invalid_json"}), 200
 
-def enviar_botoes(chat_id):
-    payload = {
-        "chatId": chat_id,
-        "content": "📋 Escolha uma opção abaixo:",
-        "title": "Atendimento Magma X",
-        "footer": "Estamos prontos pra te atender!",
-        "buttons": [
-            {"id": "renovar", "text": "1️⃣ Renovar"},
-            {"id": "cotar", "text": "2️⃣ Cotar novo"},
-            {"id": "assistencia", "text": "3️⃣ Assistência 24h"}
-        ]
-    }
-    print(f"➡️ Enviando botões para {chat_id}")
+    if not data:
+        print("No data received in webhook")
+        return jsonify({"success": False, "error": "no_data"}), 200
+
+    # Extract the sender's phone number or chat ID from possible fields
+    phone = None
+    if "phone" in data:
+        phone = data["phone"]
+    elif "telefone" in data:
+        phone = data["telefone"]
+    elif "sender" in data and isinstance(data["sender"], dict) and "phone" in data["sender"]:
+        phone = data["sender"]["phone"]
+    elif "chatId" in data:
+        phone = data["chatId"]
+
+    # Determine if the message is from a group and should be ignored
+    if data.get("isGroup") or (isinstance(phone, str) and ("-grupo" in phone.lower() or "@g.us" in phone)):
+        print(f"Ignoring group message from {phone}")
+        return jsonify({"success": True, "message": "ignored_group"}), 200
+
+    # Normalize phone to chat_id format for individual WhatsApp chats
+    digits = re.sub(r"\D", "", str(phone))  # remove any non-digit characters
+    if len(digits) < 11:
+        # Log a warning if the phone number seems incomplete (e.g., missing country/area code)
+        print(f"Warning: phone number appears incomplete ({phone})")
+    chat_id = digits + "@c.us" if digits else None
+
+    if not chat_id:
+        # If we couldn't determine a chat ID, log and respond without error
+        print("No valid phone/chat ID found, cannot send reply")
+        return jsonify({"success": False, "error": "no_phone"}), 200
+
+    # Extract the message text from the various possible fields
+    message_text = ""
     try:
-        r = requests.post(ZAPI_BUTTON_URL, json=payload)
-        print("🔵 RESPOSTA BOTÕES:", r.status_code, r.text)
+        if "text" in data:
+            text_field = data["text"]
+            if isinstance(text_field, str):
+                message_text = text_field
+            elif isinstance(text_field, dict):
+                # Check common keys in text dict
+                if "mensagem" in text_field:
+                    message_text = text_field["mensagem"]
+                elif "body" in text_field:
+                    message_text = text_field["body"]
+                else:
+                    # Fallback: take the first value in the dict if keys are unknown
+                    message_text = next(iter(text_field.values()), "")
+            else:
+                # If text field is present but not a str or dict (unlikely), convert to string
+                message_text = str(text_field)
+        elif "mensagem" in data:
+            message_text = data["mensagem"]
+        elif "message" in data:
+            message_text = data["message"]
     except Exception as e:
-        print("❌ Falha no envio de botões:", e)
+        # Log any error during message extraction and default to empty text
+        print(f"Error extracting message text: {e}")
+        message_text = ""
 
-def interpretar(msg):
-    msg = msg.lower().strip()
-    if msg == "1" or msg == "renovar":
-        return "🟢 Vamos renovar seu seguro! Me diga o CPF ou a placa do veículo."
-    elif msg == "2" or msg == "cotar":
-        return "📋 Vamos cotar um novo seguro! Qual o tipo? (auto, residencial, empresarial...)"
-    elif msg == "3" or msg == "assistencia":
-        return "🛠️ Assistência 24h acionada! Me diga seu endereço ou localização."
-    return None
+    # Ensure message_text is a clean string
+    if not isinstance(message_text, str):
+        message_text = str(message_text) if message_text is not None else ""
+    message_text = message_text.strip()
 
-def extrair_mensagem(data):
-    try:
-        if isinstance(data.get("text"), dict):
-            if "mensagem" in data["text"]:
-                return data["text"]["mensagem"]
-            if "body" in data["text"]:
-                return data["text"]["body"]
-        if isinstance(data.get("mensagem"), str):
-            return data["mensagem"]
-        if isinstance(data.get("message"), str):
-            return data["message"]
-        if isinstance(data.get("text"), str):
-            return data["text"]
-    except Exception as e:
-        print("❌ Falha ao extrair mensagem:", e)
-    return ""
-
-def extrair_telefone(data):
-    telefone = (
-        data.get("phone") or
-        data.get("telefone") or
-        (data.get("sender") or {}).get("phone") or
-        data.get("chatId") or ""
-    )
-    telefone = str(telefone).replace("-grupo", "")
-    chat_id = telefone if "@c.us" in telefone else f"{telefone}@c.us" if telefone else ""
-    return chat_id
-
-@app.route("/", methods=["POST"])
-def webhook():
-    data = request.get_json()
-    print("📥 JSON RECEBIDO:\n", json.dumps(data, indent=2, ensure_ascii=False))
-
-    # Ignora grupos
-    if data.get("isGroup") is True or (isinstance(data.get("telefone"), str) and "-grupo" in data.get("telefone")):
-        print("🚫 Grupo detectado. Ignorando.")
-        return jsonify({"status": "ignorado grupo"}), 200
-
-    msg = extrair_mensagem(data)
-    chat_id = extrair_telefone(data)
-    print(f"💬 Mensagem extraída: {msg}")
-    print(f"📱 chat_id extraído: {chat_id}")
-
-    if not msg or not chat_id:
-        print("❌ ERRO: Dados incompletos ou inválidos")
-        return jsonify({"erro": "dados incompletos ou inválidos"}), 400
-
-    # Testa se o número está no formato mínimo de WhatsApp
-    if len(chat_id) < 12:
-        aviso = f"Número de telefone '{chat_id}' parece incompleto. Verifique o formato no envio do WhatsApp."
-        print("⚠️ AVISO:", aviso)
-        enviar_texto(chat_id, "⚠️ Seu número parece incompleto para WhatsApp. Envie com DDD completo!")
-        return jsonify({"status": "aviso enviado"}), 200
-
-    resposta = interpretar(msg)
-    if resposta:
-        enviar_texto(chat_id, resposta)
-        return jsonify({"status": "texto enviado"}), 200
+    # Decide on the response based on the message content
+    reply_text = None
+    interactive = False
+    if message_text == "1":
+        reply_text = "Mensagem de renovação de seguro"
+    elif message_text == "2":
+        reply_text = "Mensagem de cotação de seguro"
+    elif message_text == "3":
+        reply_text = "Mensagem de assistência 24h"
     else:
-        enviar_botoes(chat_id)
-        return jsonify({"status": "botoes enviados"}), 200
+        # For any other input, prepare an interactive menu with buttons
+        interactive = True
+        reply_text = ("Por favor, escolha uma das opções: "
+                      "1-Renovação de Seguro, 2-Cotação de Seguro, 3-Assistência 24h.")
 
-@app.route("/status", methods=["GET"])
-def status():
-    return "✅ MAGMA BOT VIVO, LIGADO, RESPONDENDO E PRONTO PRA VENDER", 200
+    # Log the received message and the response that will be sent
+    print(f"Received from {chat_id}: '{message_text}' -> Responding: '{reply_text}'")
+
+    # Send the response through Z-API (using appropriate endpoint)
+    try:
+        if interactive:
+            # Prepare payload for interactive buttons (button list)
+            buttons = [
+                {"id": "1", "label": "Renovação de Seguro"},
+                {"id": "2", "label": "Cotação de Seguro"},
+                {"id": "3", "label": "Assistência 24h"}
+            ]
+            payload = {
+                "phone": digits,  # numeric phone string without formatting
+                "message": "Escolha uma opção:",  # prompt message for the buttons
+                "buttonList": {"buttons": buttons}
+            }
+            # Call Z-API endpoint to send a message with buttons
+            requests.post(f"{ZAPI_BASE_URL}/send-button-list", json=payload)
+        else:
+            # Prepare payload for a simple text message
+            payload = {
+                "phone": digits,
+                "message": reply_text
+            }
+            # Call Z-API endpoint to send a plain text message
+            requests.post(f"{ZAPI_BASE_URL}/send-text", json=payload)
+    except Exception as e:
+        # Log errors if the API call fails, but do not crash
+        print(f"Error sending message to {chat_id}: {e}")
+
+    # Always return a 200 OK response to acknowledge the webhook
+    return jsonify({"success": True}), 200
+
+# Example: Running the Flask app (not needed if deployed on a server)
+if __name__ == "__main__":
+    app.run(debug=False, port=5000)
