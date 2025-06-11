@@ -2,21 +2,23 @@ from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
-@app.route("/", methods=["POST"])
-def webhook():
+@app.route("/")
+def home():
+    return "Bot da Magma X está online com Render!"
+
+@app.route("/agendar", methods=["POST"])
+def agendar():
     data = request.get_json()
-    if not data:
-        return jsonify({"error": "Bad request"}), 400
 
-    message_data = data.get("message", {})
-    if message_data:
-        phone = message_data.get("phone", "")
-        text = message_data.get("text", "").lower()
+    # Exemplo de dados esperados no corpo da requisição
+    titulo = data.get("titulo")
+    data_evento = data.get("data")  # Ex: "2025-06-12"
+    hora_evento = data.get("hora")  # Ex: "09:00"
 
-        if "oi" in text:
-            return jsonify({
-                "phone": phone,
-                "message": "Olá! Aqui é o Magma Bot. Como posso te ajudar hoje?"
-            })
-
-    return jsonify({"message": "Recebido com sucesso"}), 200
+    # Aqui futuramente chamaremos a integração com Google Agenda
+    return jsonify({
+        "mensagem": "Lembrete recebido!",
+        "titulo": titulo,
+        "data": data_evento,
+        "hora": hora_evento
+    }), 200
